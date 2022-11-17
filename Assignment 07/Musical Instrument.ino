@@ -1,10 +1,10 @@
-int counter = 0;
 int analogSensorValue;
 bool prevSwitchState = false;
 
 int outputPattern=0; // different sound making modes
 int frequency = 0; // pitch
-int tempo = 1;  // Beat per second
+int bps = 1;  // Beat per second
+long previousMillis = 0;  // signed long to store last time when made sound
 
 int piezo = 8;
 int switchSensor = A0;
@@ -29,11 +29,6 @@ void loop() {
   } else {
     idle();
   }
-
-  // was supposed to do something similar to x 1.3 delay in "ToneMelody" example
-  // But this is flawed as noteDuration is less than (1300-1000) when BPS is >2. 
-  // However, the product seems to work fine so will not correct this issue.
-  counter = (counter + 1) % 1300;
 }
 
 void manageOutputPattern() {  // button press -> change output pattern
@@ -41,23 +36,22 @@ void manageOutputPattern() {  // button press -> change output pattern
   if (switchState && !prevSwitchState) {  // !prevSwitchState prevent undesirable changes
     Serial.println(outputPattern);
     outputPattern = (outputPattern + 1) % 6;
-    tempo = pow(2,outputPattern+1); // 2 4 8 16 32 bps
-    counter = 0;
+    bps = pow(2,outputPattern+1); // 2 4 8 16 32 bps
   }
   prevSwitchState = switchState;
 }
 
 void makeSound() {
-    // to calculate the note duration, take one second divided by a given tempo value.
-    int noteDuration = 1000 / tempo;  // <- create how many times it will make sound in a given second.
-    if (counter%noteDuration==0) {
-      tone(piezo, frequency, noteDuration);
-    }
+  unsigned long currentMillis = millis();
+  // to calculate the note duration, take one second divided by a given bps value.
+  int cycleLength = 1000 / bps;  // <- cycle length = tone duration + rest
+  if (currentMillis - previousMillis > cycleLength) {
+    previousMillis = currentMillis;
+    tone(piezo, frequency, cycleLength/1.3); // Similar to "ToneMelody" Example, delay is *1.3
+  }
 }
 
 void idle() {
   noTone(piezo); // turn off sound immediately
   delay(50);
 }
-
-
